@@ -1,6 +1,6 @@
 #include "config.h"
-
-float points[] = { 0.0f, 0.5f, 0.0f, 0.5f, -0.5f, 0.0f, -0.5f, -0.5f, 0.0f };
+#include "triangle_mesh.h"
+#include <ostream>
 
 static void error_callback(int error, const char* description)
 {
@@ -15,21 +15,83 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action,
         glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
-const char* vertex_shader = "#version 410 core\n"
-                            "in vec3 vp;"
-                            "void main() {"
-                            "  gl_Position = vec4( vp, 1.0 );"
-                            "}";
+unsigned int make_module(std::string filePath, GLenum shaderType)
+{
 
-const char* fragment_shader = "#version 410 core\n"
-                              "out vec4 frag_colour;"
-                              "void main() {"
-                              "  frag_colour = vec4( 0.5, 0.0, 0.5, 1.0 );"
-                              "}";
+    std::ifstream file;
+    std::string line;
+    std::stringstream buffString;
+
+    file.open(filePath);
+
+    while (std::getline(file, line)) {
+        buffString << line << "\n";
+    }
+
+    std::string shaderSource = buffString.str();
+    const char* sourceStr = shaderSource.c_str();
+    buffString.str("");
+
+    file.close();
+
+    // GLuint shader_program = glCreateProgram();
+
+    GLuint vs = glCreateShader(shaderType);
+    glShaderSource(vs, 1, &sourceStr, NULL);
+    glCompileShader(vs);
+
+    GLint success;
+
+    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        GLsizei log_length = 0;
+        GLchar message[1024];
+        glGetShaderInfoLog(vs, 1024, &log_length, message);
+        std::cout << "Error occured while compiling shader for " << filePath
+                  << std::endl;
+        std::cout << "Error : " << message << std::endl;
+    }
+
+    return vs;
+}
+
+unsigned int make_shader(const std::string& vertex_file,
+    const std::string& fragment_file)
+{
+
+    std::vector<unsigned int> modules;
+
+    modules.emplace_back(make_module(vertex_file, GL_VERTEX_SHADER));
+    modules.emplace_back(make_module(fragment_file, GL_FRAGMENT_SHADER));
+
+    GLuint shader_program = glCreateProgram();
+    for (unsigned int i = 0; i < modules.size(); i++) {
+        glAttachShader(shader_program, modules[i]);
+    }
+    glLinkProgram(shader_program);
+
+    GLint program_linked;
+    glGetProgramiv(shader_program, GL_LINK_STATUS, &program_linked);
+    if (program_linked != GL_TRUE) {
+        GLsizei log_length = 0;
+        GLchar message[1024];
+        glGetProgramInfoLog(shader_program, 1024, &log_length, message);
+        // Write the error to a log
+
+        std::cout << "Error : " << message << std::endl;
+    }
+
+    for (unsigned int i = 0; i < modules.size(); i++) {
+        glDeleteShader(modules[i]);
+    }
+
+    return shader_program;
+}
 
 int main(int argc, char* argv[])
 {
     std::cout << "Heloo World!" << std::endl;
+
     glfwSetErrorCallback(error_callback);
     GLFWwindow* window;
 
@@ -61,45 +123,22 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    GLuint vbo = 0;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(float), points, GL_STATIC_DRAW);
+    unsigned int shader_program = make_shader("../src/shaders/vertex.txt", "../src/shaders/fragment.txt");
 
-    GLuint vao = 0;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    TriangleMesh* triangle = new TriangleMesh();
 
-    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vs, 1, &vertex_shader, NULL);
-    glCompileShader(vs);
-    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs, 1, &fragment_shader, NULL);
-    glCompileShader(fs);
-
-    GLuint shader_program = glCreateProgram();
-    glAttachShader(shader_program, fs);
-    glAttachShader(shader_program, vs);
-    glLinkProgram(shader_program);
-
-    glClearColor(.25f, .5f, 0.75f, 1.0f);
+    GLCall(glClearColor(.25f, .5f, 0.75f, 1.0f));
     while (!glfwWindowShouldClose(window)) {
-        mat4x4 mat;
+        // mat4x4 mat;
         glfwPollEvents();
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glUseProgram(shader_program);
-        glBindVertexArray(vao);
-
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        GLCall(glUseProgram(shader_program));
+        triangle->draw();
 
         glfwSwapBuffers(window);
     }
-
+    glDeleteProgram(shader_program);
     glfwTerminate();
 
     return 0;
