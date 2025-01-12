@@ -6,7 +6,8 @@
 
 class TriangleMesh {
 private:
-    GLuint vbo = 0;
+    std::vector<GLuint> vbo;
+    GLuint ebo = 0;
     GLuint vao = 0;
     unsigned int vertex_count;
 

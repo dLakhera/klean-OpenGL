@@ -1,4 +1,5 @@
 #include "config.h"
+#include "material.h"
 #include "triangle_mesh.h"
 #include <ostream>
 
@@ -125,19 +126,39 @@ int main(int argc, char* argv[])
 
     unsigned int shader_program = make_shader("../src/shaders/vertex.txt", "../src/shaders/fragment.txt");
 
+    std::string filename = "../assets/duggu_1.png";
+    std::string mask_file = "../assets/duggu.png";
     TriangleMesh* triangle = new TriangleMesh();
+    Material* material = new Material(filename);
+    Material* mask = new Material(mask_file);
 
-    GLCall(glClearColor(.25f, .5f, 0.75f, 1.0f));
+    // set texture units
+    GLCall(glUseProgram(shader_program));
+    GLCall(glUniform1i(glGetUniformLocation(shader_program, "material"), 0));
+    GLCall(glUniform1i(glGetUniformLocation(shader_program, "mask"), 1));
+
+    // enable blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // GLCall(glClearColor(.25f, .5f, 0.75f, 1.0f));
     while (!glfwWindowShouldClose(window)) {
         // mat4x4 mat;
         glfwPollEvents();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // GL_COLOR_BUFFER_BIT parameter means that
+                                                            // the clear call will affect the color
+                                                            // buffer, causing it to be cleared to the
+                                                            // current clearing color
 
         GLCall(glUseProgram(shader_program));
         triangle->draw();
-
+        material->use(0);
+        mask->use(1);
         glfwSwapBuffers(window);
     }
+    delete triangle;
+    delete material;
+    delete mask;
     glDeleteProgram(shader_program);
     glfwTerminate();
 

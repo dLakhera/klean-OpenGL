@@ -2,11 +2,12 @@
 #define GLFW_INCLUDE_NONE
 
 #include "linmath.h"
+#include "stb_image/stb_image.h"
+
 #include <GLFW/glfw3.h>
+#include <fstream>
 #include <glad/glad.h>
 #include <glm/glm/glm.hpp>
-
-#include <fstream>
 #include <iostream>
 #include <random>
 #include <sstream>
